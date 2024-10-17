@@ -26,19 +26,22 @@ def get_input(HW):
 
 def neuron_surgeon_deployment(model,network_type,define_speed,show=False):
     """
-    为DNN模型选取最优划分点
-    :param model: DNN模型
+    Select the optimal partition point for DNN model.
+    :param model: DNN
     :param network_type: 3g or lte or wifi
     :param define_speed: bandwidth
-    :param show: 是否展示
-    :return: 选取的最优partition_point
+    :param show: whether or not to display
+    :return: selected optimal partition_point for the DNN model
+
+
+
     """
     res_lat = None
     res_index = None
     res_layer_index = None
     predictor_dict = {}
 
-    layer_index = 0     # 标记layer顺序 - 指no-skip layer
+    layer_index = 0     # mark layer order - (no-skip layer)
     for index in range(len(model) + 1):
         if index != 0 and predictor_utils.skip_layer(model[index - 1]):
             continue
