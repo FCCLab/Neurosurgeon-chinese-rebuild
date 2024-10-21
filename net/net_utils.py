@@ -14,18 +14,28 @@ def start_server(socket_server,device):
     :param socket_server: socket服务端
     :param device: 使用本地的cpu运行还是cuda运行
     :return: None
+
+    Start listening for messages from the client.
+    Typically called directly in cloud_api.py.
+    :param socket_server: socket server
+    :param device: whether to run on the local CPU or CUDA
+    :return: None
     """
     # 等待客户端连接
+    # Wait for client connection
     conn, client = wait_client(socket_server)
 
     # 接收模型类型
+    # Receive model type
     model_type = get_short_data(conn)
     print(f"get model type successfully.")
 
     # 读取模型
+    # Load the model
     model = inference_utils.get_dnn_model(model_type)
 
     # 接收模型分层点
+    # Receive model partition point
     partition_point = get_short_data(conn)
     print(f"get partition point successfully.")
 
@@ -34,19 +44,23 @@ def start_server(socket_server,device):
 
 
     # 接收中间数据并返回传输时延
+    # Receive intermediate data and return transmission latency
     edge_output,transfer_latency = get_data(conn)
 
     # 连续发送两个消息 防止消息粘包
+    # Send two consecutive messages to prevent message sticking
     conn.recv(40)
 
     print(f"get edge_output and transfer latency successfully.")
     send_short_data(conn,transfer_latency,"transfer latency")
 
     # 连续发送两个消息 防止消息粘包
+    # Send two consecutive messages to prevent message sticking
     conn.recv(40)
 
     inference_utils.warmUp(cloud_model, edge_output, device)
     # 记录云端推理时延
+    # Record cloud inference latency
     cloud_output,cloud_latency = inference_utils.recordTime(cloud_model, edge_output,device,epoch_cpu=30,epoch_gpu=100)
     send_short_data(conn, cloud_latency, "cloud latency")
 
@@ -65,40 +79,60 @@ def start_client(ip,port,input_x,model_type,partition_point,device):
     :param partition_point 模型划分点
     :param device: 在本地cpu运行还是cuda运行
     :return: None
+
+    Start a client to send an inference request to the server.
+    Typically called directly in edge_api.py.
+    :param ip: server IP address
+    :param port: server port
+    :param model_type: type of model used
+    :param input_x: initial input
+    :param partition_point: model partition point
+    :param device: whether to run on local CPU or CUDA
+    :return: None
     """
     conn = get_socket_client(ip, port)
 
     # 发送模型类型
+    # Send model type
     send_short_data(conn, model_type, msg="model type")
 
     # 读取模型
+    # Load the model
     model = inference_utils.get_dnn_model(model_type)
 
     # 发送划分点
+    # Send partition point
     send_short_data(conn,partition_point,msg="partition strategy")
 
     edge_model, _ = inference_utils.model_partition(model, partition_point)
     edge_model = edge_model.to(device)
 
     # 开始边缘端的推理 首先进行预热
+    # Start inference on the edge device, starting with warmup
     inference_utils.warmUp(edge_model, input_x, device)
     edge_output,edge_latency = inference_utils.recordTime(edge_model,input_x,device,epoch_cpu=30,epoch_gpu=100)
-    print(f"{model_type} 在边缘端设备上推理完成 - {edge_latency:.3f} ms")
+    # print(f"{model_type} 在边缘端设备上推理完成 - {edge_latency:.3f} ms")
+    print(f"{model_type} inference completed on edge device - {edge_latency:.3f} ms")
 
     # 发送中间数据
+    # Send intermediate data
     send_data(conn,edge_output,"edge output")
 
     # 连续接收两个消息 防止消息粘包
+    # Send two consecutive messages to prevent message sticking
     conn.sendall("avoid  sticky".encode())
 
     transfer_latency = get_short_data(conn)
-    print(f"{model_type} 传输完成 - {transfer_latency:.3f} ms")
+    # print(f"{model_type} 传输完成 - {transfer_latency:.3f} ms")
+    print(f"{model_type} transmission completed - {transfer_latency:.3f} ms")
 
     # 连续接收两个消息 防止消息粘包
+    # Send two consecutive messages to prevent message sticking
     conn.sendall("avoid  sticky".encode())
 
     cloud_latency = get_short_data(conn)
-    print(f"{model_type} 在云端设备上推理完成 - {cloud_latency:.3f} ms")
+    # print(f"{model_type} 在云端设备上推理完成 - {cloud_latency:.3f} ms")
+    print(f"{model_type} inference completed on cloud device - {cloud_latency:.3f} ms")
 
     print("================= DNN Collaborative Inference Finished. ===================")
     conn.close()
@@ -112,6 +146,12 @@ def get_socket_server(ip, port, max_client_num=10):
     :param port: socket的网络端口
     :param max_client_num: 最大可连接的用户数
     :return: 创建好的socket
+
+    Create a socket for the server (cloud device) to wait for client connections.
+    :param ip: IP of the cloud device
+    :param port: network port for the socket
+    :param max_client_num: maximum number of clients that can connect
+    :return: created socket
     """
     socket_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # 创建socket
 

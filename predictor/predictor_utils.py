@@ -14,6 +14,10 @@ from predictor.get_datasets_func import get_datasets_by_kernel_kind
     1. 主要为构建预测模型 prediction models需要用到的函数
     2. 评估模型准确度用到的函数
     3. 用于预测不同DNN层的kernel_predictor功能函数
+    this file contains:
+    1. functions that are used when build prediction models.
+    2. functions that are used when evaluate the accuracy of models.
+    3. Utility functions for kernel predictors used to predict various DNN layers.
 """
 
 
